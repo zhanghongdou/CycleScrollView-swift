@@ -7,6 +7,7 @@
 //
 
 import UIKit
+
 /**
  数据源：获取总的page个数
  **/
@@ -20,6 +21,9 @@ typealias ContentViewAtIndex = (pageIndex: NSInteger) -> UIView
  **/
 typealias ActionBlock = (pageIndex: NSInteger) -> Void
 class CycleScrollView: UIView, UIScrollViewDelegate {
+    //存放加载图片的网址
+    var imageURLArray = Array<String>()
+    var imageViewCopy : UIImageView?
     
     var scrollView : UIScrollView?
 //    var getTotalPagesCountBlock = TotalPagesCountBlock?()
@@ -37,8 +41,15 @@ class CycleScrollView: UIView, UIScrollViewDelegate {
         set{
             _totalPageCount = newValue
             if _totalPageCount > 0 {
+                
+                if _totalPageCount > 1 {
+                    self.scrollView?.scrollEnabled = true
+                    self.startTimer()
+                    if _totalPageCount == 2 {
+                        self.imageViewCopy = UIImageView.init(frame: CGRectMake(0, 0, CGRectGetWidth(self.frame), 200))
+                    }
+                }
                 self.configContentViews()
-                self.startTimer()
             }
         }
         get{
@@ -58,6 +69,7 @@ class CycleScrollView: UIView, UIScrollViewDelegate {
         self.scrollView?.showsVerticalScrollIndicator = false
         self.scrollView?.showsHorizontalScrollIndicator = false
         self.scrollView?.contentMode = .Center
+        self.scrollView?.scrollEnabled = false
         self.scrollView?.contentSize = CGSizeMake(3 * CGRectGetWidth(scrollViewFrame), CGRectGetHeight(scrollViewFrame))
         self.scrollView?.delegate = self
         self.scrollView?.pagingEnabled = true
@@ -97,17 +109,41 @@ class CycleScrollView: UIView, UIScrollViewDelegate {
             view.frame = rightRect
             self.scrollView?.addSubview(view)
         }
-        self.scrollView?.contentOffset = CGPointMake(self.scrollView!.frame.size.width, 0)
+        
+        if _totalPageCount == 1 {
+            self.scrollView?.contentOffset = CGPointMake(0, 0)
+        }else{
+            self.scrollView?.contentOffset = CGPointMake(self.scrollView!.frame.size.width, 0)
+        }
     }
     func setScrollViewContentDataSource() {
         let previousPageIndex = self.getValidNextPageIndexWithPageIndex(self.currentPageIndex - 1)
         let rearPageIndex = self.getValidNextPageIndexWithPageIndex(self.currentPageIndex + 1)
         self.contentViews.removeAllObjects()
         if self.fetchContentViewAtIndex != nil {
-            
-            self.contentViews.addObject(self.fetchContentViewAtIndex!(pageIndex: previousPageIndex))
-            self.contentViews.addObject(self.fetchContentViewAtIndex!(pageIndex: self.currentPageIndex))
-            self.contentViews.addObject(self.fetchContentViewAtIndex!(pageIndex: rearPageIndex))
+            if _totalPageCount == 1 {
+                self.contentViews.addObject(self.fetchContentViewAtIndex!(pageIndex: 0))
+            }else{
+                if _totalPageCount == 2 {
+                    //如果当前是0的话，就copy1
+                    if self.currentPageIndex == 0 {
+                        self.imageViewCopy?.sd_setImageWithURL(NSURL(string: self.imageURLArray[1]))
+                        self.contentViews.addObject(self.fetchContentViewAtIndex!(pageIndex: previousPageIndex))
+                        self.contentViews.addObject(self.fetchContentViewAtIndex!(pageIndex: self.currentPageIndex))
+                        self.contentViews.addObject(self.imageViewCopy!)
+                        
+                    }else{//如果当前是1的话，就copy0
+                        self.imageViewCopy?.sd_setImageWithURL(NSURL(string: self.imageURLArray[0]))
+                        self.contentViews.addObject(self.fetchContentViewAtIndex!(pageIndex: previousPageIndex))
+                        self.contentViews.addObject(self.fetchContentViewAtIndex!(pageIndex: self.currentPageIndex))
+                        self.contentViews.addObject(self.imageViewCopy!)
+                    }
+                }else{
+                    self.contentViews.addObject(self.fetchContentViewAtIndex!(pageIndex: previousPageIndex))
+                    self.contentViews.addObject(self.fetchContentViewAtIndex!(pageIndex: self.currentPageIndex))
+                    self.contentViews.addObject(self.fetchContentViewAtIndex!(pageIndex: rearPageIndex))
+                }
+            }
         }
     }
     
@@ -141,8 +177,11 @@ class CycleScrollView: UIView, UIScrollViewDelegate {
     }
     
     func scrollViewDidEndDragging(scrollView: UIScrollView, willDecelerate decelerate: Bool) {
-        self.startTimer()
+        if _totalPageCount > 1 {
+          self.startTimer()
+        }
     }
+    
     
     func scrollViewDidScroll(scrollView: UIScrollView) {
         let contentOffsetX = scrollView.contentOffset.x
